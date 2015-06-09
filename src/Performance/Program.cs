@@ -17,11 +17,11 @@ namespace Performance
             LinearAlgebra.DenseMatrixProduct.Verify(100);
             Benchmark(new LinearAlgebra.DenseMatrixProduct(10,100), 100, "10 - 100x100 iterations");
             Benchmark(new LinearAlgebra.DenseMatrixProduct(25, 100), 100, "25 - 100x100 iterations");
-            Benchmark(new LinearAlgebra.DenseMatrixProduct(50, 10), 100, "50 - 100x10 iterations");
-            Benchmark(new LinearAlgebra.DenseMatrixProduct(100, 10), 100, "100 - 100x10 iterations");
-            Benchmark(new LinearAlgebra.DenseMatrixProduct(250, 1), 10, "250 - 10x1 iterations");
-            Benchmark(new LinearAlgebra.DenseMatrixProduct(500,1), 10, "500 - 10x1 iterations");
-            Benchmark(new LinearAlgebra.DenseMatrixProduct(1000,1), 2, "1000 - 2x1 iterations");
+            Benchmark(new LinearAlgebra.DenseMatrixProduct(50, 80), 100, "50 - 100x100 iterations");
+            Benchmark(new LinearAlgebra.DenseMatrixProduct(100, 40), 40, "100 - 40x40 iterations");
+            Benchmark(new LinearAlgebra.DenseMatrixProduct(250, 10), 20, "250 - 20x10 iterations");
+            Benchmark(new LinearAlgebra.DenseMatrixProduct(500, 4), 10, "500 - 10x4 iterations");
+            Benchmark(new LinearAlgebra.DenseMatrixProduct(1000, 4), 10, "1000 - 10x4 iterations");
         }
 
         static void Benchmark(object obj, uint iterations, string suffix = null)

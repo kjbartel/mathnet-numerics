@@ -3,7 +3,9 @@ using Binarysharp.Benchmark;
 using MathNet.Numerics;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.Providers.LinearAlgebra;
+using MathNet.Numerics.Providers.LinearAlgebra.Cuda;
 using MathNet.Numerics.Providers.LinearAlgebra.Mkl;
+using MathNet.Numerics.Providers.LinearAlgebra.OpenBlas;
 using MathNet.Numerics.Threading;
 
 namespace Performance.LinearAlgebra
@@ -16,6 +18,8 @@ namespace Performance.LinearAlgebra
 
         readonly ILinearAlgebraProvider _managed = new ManagedLinearAlgebraProvider();
         readonly ILinearAlgebraProvider _mkl = new MklLinearAlgebraProvider();
+        readonly ILinearAlgebraProvider _openblas = new OpenBlasLinearAlgebraProvider();
+        readonly ILinearAlgebraProvider _cuda = new CudaLinearAlgebraProvider();
         readonly ILinearAlgebraProvider _safeProvider = new SafeProvider();
         readonly ILinearAlgebraProvider _unsafeProvider = new UnsafeProvider();
         readonly ILinearAlgebraProvider _experimentalProvider = new ExperimentalProvider();
@@ -34,6 +38,8 @@ namespace Performance.LinearAlgebra
 
 #if NATIVE
             _mkl.InitializeVerify();
+            _openblas.InitializeVerify();
+            _cuda.InitializeVerify();
 #endif
         }
 
@@ -42,6 +48,8 @@ namespace Performance.LinearAlgebra
             var x = new DenseMatrixProduct(size, 1);
             var managedResult = x.ManagedProvider();
             var mklResult = x.MklProvider();
+            var openblasResult = x.OpenBlasProvider();
+            var cudaResult = x.CudaProvider();
             var safeResult = x.SafeProvider();
             var unsafeResult = x.UnsafeProvider();
             var experimentalResult = x.ExperimentalProvider();
@@ -55,6 +63,14 @@ namespace Performance.LinearAlgebra
             if (!managedResult.AlmostEqual(mklResult, 1e-12))
             {
                 throw new Exception("MklProvider");
+            }
+            if (!managedResult.AlmostEqual(openblasResult, 1e-12))
+            {
+                throw new Exception("OpenBlasProvider");
+            }
+            if (!managedResult.AlmostEqual(cudaResult, 1e-12))
+            {
+                throw new Exception("CudaProvider");
             }
             if (!managedResult.AlmostEqual(safeResult, 1e-12))
             {
@@ -90,6 +106,30 @@ namespace Performance.LinearAlgebra
             for (int i = 0; i < _rounds; i++)
             {
                 z = _a*z;
+            }
+            return z;
+        }
+
+        [BenchSharkTask("OpenBlasProvider")]
+        public Matrix<double> OpenBlasProvider()
+        {
+            Control.LinearAlgebraProvider = _openblas;
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                z = _a * z;
+            }
+            return z;
+        }
+
+        [BenchSharkTask("CudaProvider")]
+        public Matrix<double> CudaProvider()
+        {
+            Control.LinearAlgebraProvider = _cuda;
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                z = _a * z;
             }
             return z;
         }
