@@ -16,7 +16,16 @@ namespace Performance.LinearAlgebra
         readonly Vector<double> _b;
 
         readonly ILinearAlgebraProvider _managed = new ManagedLinearAlgebraProvider();
+#if NATIVE
         readonly ILinearAlgebraProvider _mkl = new MklLinearAlgebraProvider();
+        readonly ILinearAlgebraProvider _native = new NativeProvider();
+        readonly ILinearAlgebraProvider _native_vec = new NativeProvider_Vector();
+        readonly ILinearAlgebraProvider _native_par = new NativeProvider_Parallel();
+        readonly ILinearAlgebraProvider _native_omp = new NativeProvider_OpenMP();
+        readonly ILinearAlgebraProvider _native_opt = new NativeProvider_Optimized();
+        readonly ILinearAlgebraProvider _native_opt2 = new NativeProvider_Optimized2();
+        readonly ILinearAlgebraProvider _native_amp = new NativeProvider_AMP();
+#endif
 
         public DenseVectorAdd(int size, int rounds)
         {
@@ -30,7 +39,47 @@ namespace Performance.LinearAlgebra
 
 #if NATIVE
             _mkl.InitializeVerify();
+            SafeNativePerformanceMethods.set_max_threads(Control.MaxDegreeOfParallelism);
 #endif
+        }
+
+        public static void Verify(int size)
+        {
+            var x = new DenseVectorAdd(size, 1);
+            var managedResult = x.ManagedProvider();
+            var mklResult = x.MklProvider();
+            var nativeResult = x.NativeProvider();
+            var nativeAMPResult = x.NativeProvider_AMP();
+            var nativeOMPResult = x.NativeProvider_OpenMP();
+            var nativeVectorResult = x.NativeProvider_Vector();
+            var nativeParallelResult = x.NativeProvider_Parallel();
+
+            Console.WriteLine(managedResult.ToString());
+
+            if (!managedResult.AlmostEqual(mklResult, 1e-12))
+            {
+                throw new Exception("MklProvider");
+            }
+            if (!managedResult.AlmostEqual(nativeResult, 1e-12))
+            {
+                throw new Exception("NativeProvider");
+            }
+            if (!managedResult.AlmostEqual(nativeAMPResult, 1e-12))
+            {
+                throw new Exception("NativeProvider_AMP");
+            }
+            if (!managedResult.AlmostEqual(nativeOMPResult, 1e-12))
+            {
+                throw new Exception("NativeProvider_OpenMP");
+            }
+            if (!managedResult.AlmostEqual(nativeVectorResult, 1e-12))
+            {
+                throw new Exception("NativeProvider_Vector");
+            }
+            if (!managedResult.AlmostEqual(nativeParallelResult, 1e-12))
+            {
+                throw new Exception("NativeProvider_Parallel");
+            }
         }
 
         [BenchSharkTask("AddOperator")]
@@ -130,7 +179,7 @@ namespace Performance.LinearAlgebra
             return z;
         }
 
-#if NATIVEMKL
+#if NATIVE
         [BenchSharkTask("MklProvider")]
         public Vector<double> MklProvider()
         {
@@ -145,6 +194,312 @@ namespace Performance.LinearAlgebra
             }
             return z;
         }
+
+        [BenchSharkTask("NativeProvider")]
+        public Vector<double> NativeProvider()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                _native.AddArrays(aa, az, ar);
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        [BenchSharkTask("NativeProvider_Vector")]
+        public Vector<double> NativeProvider_Vector()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                _native_vec.AddArrays(aa, az, ar);
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        [BenchSharkTask("NativeProvider_Parallel")]
+        public Vector<double> NativeProvider_Parallel()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                _native_par.AddArrays(aa, az, ar);
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        [BenchSharkTask("NativeProvider_OpenMP")]
+        public Vector<double> NativeProvider_OpenMP()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                _native_omp.AddArrays(aa, az, ar);
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        [BenchSharkTask("NativeProvider_Optimized")]
+        public Vector<double> NativeProvider_Optimized()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                _native_opt.AddArrays(aa, az, ar);
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        [BenchSharkTask("NativeProvider_Optimized2")]
+        public Vector<double> NativeProvider_Optimized2()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                _native_opt2.AddArrays(aa, az, ar);
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        //[BenchSharkTask("NativeProvider_AMP")]
+        public Vector<double> NativeProvider_AMP()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                _native_amp.AddArrays(aa, az, ar);
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
 #endif
     }
+
+#if NATIVE
+    public class NativeProvider : ManagedLinearAlgebraProvider
+    {
+        public override void AddArrays(double[] x, double[] y, double[] result)
+        {
+            if (y == null)
+            {
+                throw new ArgumentNullException("y");
+            }
+
+            if (x == null)
+            {
+                throw new ArgumentNullException("x");
+            }
+
+            if (x.Length != y.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            if (x.Length != result.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            SafeNativePerformanceMethods.d_vector_add(x.Length, x, y, result);
+        }
+    }
+
+    public class NativeProvider_Vector : ManagedLinearAlgebraProvider
+    {
+        public override void AddArrays(double[] x, double[] y, double[] result)
+        {
+            if (y == null)
+            {
+                throw new ArgumentNullException("y");
+            }
+
+            if (x == null)
+            {
+                throw new ArgumentNullException("x");
+            }
+
+            if (x.Length != y.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            if (x.Length != result.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            SafeNativePerformanceMethods.d_vector_add_vec(x.Length, x, y, result);
+        }
+    }
+
+    public class NativeProvider_Parallel : ManagedLinearAlgebraProvider
+    {
+        public override void AddArrays(double[] x, double[] y, double[] result)
+        {
+            if (y == null)
+            {
+                throw new ArgumentNullException("y");
+            }
+
+            if (x == null)
+            {
+                throw new ArgumentNullException("x");
+            }
+
+            if (x.Length != y.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            if (x.Length != result.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            SafeNativePerformanceMethods.d_vector_add_par(x.Length, x, y, result);
+        }
+    }
+
+    public class NativeProvider_OpenMP : ManagedLinearAlgebraProvider
+    {
+        public override void AddArrays(double[] x, double[] y, double[] result)
+        {
+            if (y == null)
+            {
+                throw new ArgumentNullException("y");
+            }
+
+            if (x == null)
+            {
+                throw new ArgumentNullException("x");
+            }
+
+            if (x.Length != y.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            if (x.Length != result.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            SafeNativePerformanceMethods.d_vector_add_omp(x.Length, x, y, result);
+        }
+    }
+
+    public class NativeProvider_Optimized : ManagedLinearAlgebraProvider
+    {
+        public override void AddArrays(double[] x, double[] y, double[] result)
+        {
+            if (y == null)
+            {
+                throw new ArgumentNullException("y");
+            }
+
+            if (x == null)
+            {
+                throw new ArgumentNullException("x");
+            }
+
+            if (x.Length != y.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            if (x.Length != result.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            SafeNativePerformanceMethods.d_vector_add_opt(x.Length, x, y, result);
+        }
+    }
+
+    public class NativeProvider_Optimized2 : ManagedLinearAlgebraProvider
+    {
+        public override void AddArrays(double[] x, double[] y, double[] result)
+        {
+            if (y == null)
+            {
+                throw new ArgumentNullException("y");
+            }
+
+            if (x == null)
+            {
+                throw new ArgumentNullException("x");
+            }
+
+            if (x.Length != y.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            if (x.Length != result.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            if (x.Length <= (Control.MaxDegreeOfParallelism * 1000))
+                SafeNativePerformanceMethods.d_vector_add_vec(x.Length, x, y, result);
+            else
+                SafeNativePerformanceMethods.d_vector_add_par(x.Length, x, y, result);
+        }
+    }
+
+    public class NativeProvider_AMP : ManagedLinearAlgebraProvider
+    {
+        public override void AddArrays(double[] x, double[] y, double[] result)
+        {
+            if (y == null)
+            {
+                throw new ArgumentNullException("y");
+            }
+
+            if (x == null)
+            {
+                throw new ArgumentNullException("x");
+            }
+
+            if (x.Length != y.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            if (x.Length != result.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            SafeNativePerformanceMethods.d_vector_add_amp(x.Length, x, y, result);
+        }
+    }
+#endif
 }
