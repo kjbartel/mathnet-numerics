@@ -6,6 +6,7 @@ using MathNet.Numerics.Providers.LinearAlgebra.Mkl;
 using MathNet.Numerics.Threading;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Storage;
+using System.Runtime.InteropServices;
 
 namespace Performance.LinearAlgebra
 {
@@ -49,6 +50,7 @@ namespace Performance.LinearAlgebra
             var managedResult = x.ManagedProvider();
             var mklResult = x.MklProvider();
             var nativeResult = x.NativeProvider();
+            var nativePinnedResult = x.NativeProvider_Pinned();
             var nativeAMPResult = x.NativeProvider_AMP();
             var nativeOMPResult = x.NativeProvider_OpenMP();
             var nativeVectorResult = x.NativeProvider_Vector();
@@ -63,6 +65,10 @@ namespace Performance.LinearAlgebra
             if (!managedResult.AlmostEqual(nativeResult, 1e-12))
             {
                 throw new Exception("NativeProvider");
+            }
+            if (!managedResult.AlmostEqual(nativePinnedResult, 1e-12))
+            {
+                throw new Exception("NativeProvider_Pinned");
             }
             if (!managedResult.AlmostEqual(nativeAMPResult, 1e-12))
             {
@@ -207,6 +213,28 @@ namespace Performance.LinearAlgebra
                 _native.AddArrays(aa, az, ar);
                 z = Vector<double>.Build.Dense(ar);
             }
+            return z;
+        }
+
+        [BenchSharkTask("NativeProvider_Pinned")]
+        public Vector<double> NativeProvider_Pinned()
+        {
+            var z = _b;
+            int n = _a.Count;
+            var agch = GCHandle.Alloc(((DenseVectorStorage<double>)_a.Storage).Data, GCHandleType.Pinned);
+            var zgch = GCHandle.Alloc(((DenseVectorStorage<double>)z.Storage).Data, GCHandleType.Pinned);
+
+            for (int i = 0; i < _rounds; i++)
+            {
+                var ar = new Double[n];
+                var rgch = GCHandle.Alloc(ar, GCHandleType.Pinned);
+                _native.AddArrays(((DenseVectorStorage<double>)_a.Storage).Data, ((DenseVectorStorage<double>)z.Storage).Data, ar);
+                zgch.Free();
+                zgch = rgch;
+                z = Vector<double>.Build.Dense(ar);
+            }
+            agch.Free();
+            zgch.Free();
             return z;
         }
 
