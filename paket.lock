@@ -17,4 +17,5 @@ NUGET
     NuGet.CommandLine (2.8.6)
     NUnit (2.6.4)
     NUnit.Runners (2.6.4)
+    System.Numerics.Vectors (1.1.6-beta)
     TaskParallelLibrary (1.0.2856)

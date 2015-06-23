@@ -10,6 +10,8 @@ using System.Runtime.InteropServices;
 
 namespace Performance.LinearAlgebra
 {
+    using SN = System.Numerics;
+
     public class DenseVectorAdd
     {
         readonly int _rounds;
@@ -48,6 +50,9 @@ namespace Performance.LinearAlgebra
         {
             var x = new DenseVectorAdd(size, 1);
             var managedResult = x.ManagedProvider();
+            var vectorLoopResult = x.VectorLoop();
+            var vectorLoop4096Result = x.ParallelVectorLoop4096();
+            var vectorLoop32768Result = x.ParallelVectorLoop32768();
             var mklResult = x.MklProvider();
             var nativeResult = x.NativeProvider();
             var nativePinnedResult = x.NativeProvider_Pinned();
@@ -58,6 +63,18 @@ namespace Performance.LinearAlgebra
 
             Console.WriteLine(managedResult.ToString());
 
+            if (!managedResult.AlmostEqual(vectorLoopResult, 1e-12))
+            {
+                throw new Exception("VectorLoop");
+            }
+            if (!managedResult.AlmostEqual(vectorLoop4096Result, 1e-12))
+            {
+                throw new Exception("ParallelVectorLoop4096");
+            }
+            if (!managedResult.AlmostEqual(vectorLoop32768Result, 1e-12))
+            {
+                throw new Exception("ParallelVectorLoop32768");
+            }
             if (!managedResult.AlmostEqual(mklResult, 1e-12))
             {
                 throw new Exception("MklProvider");
@@ -163,6 +180,75 @@ namespace Performance.LinearAlgebra
                     for (int k = u; k < v; k++)
                     {
                         ar[k] = aa[k] + az[k];
+                    }
+                });
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        [BenchSharkTask("VectorLoop")]
+        public Vector<double> VectorLoop()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                for (int k = 0; k < ar.Length; k += SN.Vector<double>.Count)
+                {
+                    var av = new SN.Vector<double>(aa, k);
+                    var zv = new SN.Vector<double>(az, k);
+                    var rv = av + zv;
+                    rv.CopyTo(ar, k);
+                }
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        [BenchSharkTask("ParallelVectorLoop4096")]
+        public Vector<double> ParallelVectorLoop4096()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                CommonParallel.For(0, ar.Length, 4096, (u, v) =>
+                {
+                    for (int k = u; k < v; k += SN.Vector<double>.Count)
+                    {
+                        var av = new SN.Vector<double>(aa, k);
+                        var zv = new SN.Vector<double>(az, k);
+                        var rv = av + zv;
+                        rv.CopyTo(ar, k);
+                    }
+                });
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        [BenchSharkTask("ParallelVectorLoop32768")]
+        public Vector<double> ParallelVectorLoop32768()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                CommonParallel.For(0, ar.Length, 32768, (u, v) =>
+                {
+                    for (int k = u; k < v; k += SN.Vector<double>.Count)
+                    {
+                        var av = new SN.Vector<double>(aa, k);
+                        var zv = new SN.Vector<double>(az, k);
+                        var rv = av + zv;
+                        rv.CopyTo(ar, k);
                     }
                 });
                 z = Vector<double>.Build.Dense(ar);
