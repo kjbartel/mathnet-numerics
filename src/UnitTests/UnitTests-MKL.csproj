@@ -104,7 +104,6 @@
     <Compile Include="EuclidTests\GcdRelatedTestBigInteger.cs" />
     <Compile Include="EuclidTests\IntegerTheoryTest.cs" />
     <Compile Include="ExcelTests.cs" />
-    <Compile Include="FinancialTests\CompoundMonthlyReturnTests.cs" />
     <Compile Include="FinancialTests\DownsideDeviationTests.cs" />
     <Compile Include="FinancialTests\GainLossRatioTests.cs" />
     <Compile Include="FinancialTests\GainMeanTests.cs" />

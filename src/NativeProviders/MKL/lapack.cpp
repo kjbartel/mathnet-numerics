@@ -2,12 +2,34 @@
 #include <complex>
 #include "wrapper_common.h"
 
-#define MKL_Complex8 std::complex<float>
-#define MKL_Complex16 std::complex<double>
-
-#include "mkl.h"
-#include "lapack_common.h"
 #include "lapack.h"
+#include "lapack_common.h"
+
+struct ptrfree
+{
+	void operator()(void* x) { PTRFREE(x); }
+};
+
+template <typename T> using ptr = std::unique_ptr < T, ptrfree >;
+
+template<typename T>
+inline ptr<T> array_new(const int size, int alignment = ALIGNMENT) {
+	auto ret = static_cast<T*>(PTRALLOC(size * sizeof(T), alignment));
+
+	if (!ret)
+	{
+		throw new std::bad_alloc();
+	}
+
+	return ptr<T>(ret);
+}
+
+template<typename T>
+inline ptr<T> array_clone(const int size, const T* array){
+	auto clone = array_new<T>(size);
+	memcpy(clone.get(), array, size * sizeof(T));
+	return clone;
+}
 
 template<typename T, typename GETRF>
 inline lapack_int lu_factor(lapack_int m, T a[], lapack_int ipiv[], GETRF getrf)
