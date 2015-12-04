@@ -19,6 +19,8 @@ namespace Performance.LinearAlgebra
         readonly Vector<double> _b;
 
         readonly ILinearAlgebraProvider _managed = new ManagedLinearAlgebraProvider();
+        readonly ILinearAlgebraProvider _simd = new SIMDLinearAlgebraProvider();
+        readonly ILinearAlgebraProvider _simd_par = new SIMDLinearAlgebraProvider_Parallel();
 #if NATIVE
         readonly ILinearAlgebraProvider _mkl = new MklLinearAlgebraProvider();
         readonly ILinearAlgebraProvider _native = new NativeProvider();
@@ -52,7 +54,7 @@ namespace Performance.LinearAlgebra
             var managedResult = x.ManagedProvider();
             var vectorLoopResult = x.VectorLoop();
             var vectorLoop4096Result = x.ParallelVectorLoop4096();
-            var vectorLoop32768Result = x.ParallelVectorLoop32768();
+#if NATIVE
             var mklResult = x.MklProvider();
             var nativeResult = x.NativeProvider();
             var nativePinnedResult = x.NativeProvider_Pinned();
@@ -60,6 +62,7 @@ namespace Performance.LinearAlgebra
             var nativeOMPResult = x.NativeProvider_OpenMP();
             var nativeVectorResult = x.NativeProvider_Vector();
             var nativeParallelResult = x.NativeProvider_Parallel();
+#endif
 
             Console.WriteLine(managedResult.ToString());
 
@@ -71,10 +74,7 @@ namespace Performance.LinearAlgebra
             {
                 throw new Exception("ParallelVectorLoop4096");
             }
-            if (!managedResult.AlmostEqual(vectorLoop32768Result, 1e-12))
-            {
-                throw new Exception("ParallelVectorLoop32768");
-            }
+#if NATIVE
             if (!managedResult.AlmostEqual(mklResult, 1e-12))
             {
                 throw new Exception("MklProvider");
@@ -103,9 +103,25 @@ namespace Performance.LinearAlgebra
             {
                 throw new Exception("NativeProvider_Parallel");
             }
+#endif
         }
 
-        [BenchSharkTask("AddOperator")]
+        [BenchSharkTask("ManagedProvider")]
+        public Vector<double> ManagedProvider()
+        {
+            var z = _b;
+            for (int i = 0; i < _rounds; i++)
+            {
+                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
+                var az = ((DenseVectorStorage<double>)z.Storage).Data;
+                var ar = new Double[aa.Length];
+                _managed.AddArrays(aa, az, ar);
+                z = Vector<double>.Build.Dense(ar);
+            }
+            return z;
+        }
+
+        //[BenchSharkTask("AddOperator")]
         public Vector<double> AddOperator()
         {
             var z = _b;
@@ -116,7 +132,7 @@ namespace Performance.LinearAlgebra
             return z;
         }
 
-        [BenchSharkTask("Map2")]
+        //[BenchSharkTask("Map2")]
         public Vector<double> Map2()
         {
             var z = _b;
@@ -145,7 +161,7 @@ namespace Performance.LinearAlgebra
             return z;
         }
 
-        [BenchSharkTask("ParallelLoop4096")]
+        //[BenchSharkTask("ParallelLoop4096")]
         public Vector<double> ParallelLoop4096()
         {
             var z = _b;
@@ -166,7 +182,7 @@ namespace Performance.LinearAlgebra
             return z;
         }
 
-        [BenchSharkTask("ParallelLoop32768")]
+        //[BenchSharkTask("ParallelLoop32768")]
         public Vector<double> ParallelLoop32768()
         {
             var z = _b;
@@ -196,13 +212,7 @@ namespace Performance.LinearAlgebra
                 var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
                 var az = ((DenseVectorStorage<double>)z.Storage).Data;
                 var ar = new Double[aa.Length];
-                for (int k = 0; k < ar.Length; k += SN.Vector<double>.Count)
-                {
-                    var av = new SN.Vector<double>(aa, k);
-                    var zv = new SN.Vector<double>(az, k);
-                    var rv = av + zv;
-                    rv.CopyTo(ar, k);
-                }
+                _simd.AddArrays(aa, az, ar);
                 z = Vector<double>.Build.Dense(ar);
             }
             return z;
@@ -211,61 +221,14 @@ namespace Performance.LinearAlgebra
         [BenchSharkTask("ParallelVectorLoop4096")]
         public Vector<double> ParallelVectorLoop4096()
         {
+            var v_width = SN.Vector<double>.Count;
             var z = _b;
             for (int i = 0; i < _rounds; i++)
             {
                 var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
                 var az = ((DenseVectorStorage<double>)z.Storage).Data;
                 var ar = new Double[aa.Length];
-                CommonParallel.For(0, ar.Length, 4096, (u, v) =>
-                {
-                    for (int k = u; k < v; k += SN.Vector<double>.Count)
-                    {
-                        var av = new SN.Vector<double>(aa, k);
-                        var zv = new SN.Vector<double>(az, k);
-                        var rv = av + zv;
-                        rv.CopyTo(ar, k);
-                    }
-                });
-                z = Vector<double>.Build.Dense(ar);
-            }
-            return z;
-        }
-
-        [BenchSharkTask("ParallelVectorLoop32768")]
-        public Vector<double> ParallelVectorLoop32768()
-        {
-            var z = _b;
-            for (int i = 0; i < _rounds; i++)
-            {
-                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
-                var az = ((DenseVectorStorage<double>)z.Storage).Data;
-                var ar = new Double[aa.Length];
-                CommonParallel.For(0, ar.Length, 32768, (u, v) =>
-                {
-                    for (int k = u; k < v; k += SN.Vector<double>.Count)
-                    {
-                        var av = new SN.Vector<double>(aa, k);
-                        var zv = new SN.Vector<double>(az, k);
-                        var rv = av + zv;
-                        rv.CopyTo(ar, k);
-                    }
-                });
-                z = Vector<double>.Build.Dense(ar);
-            }
-            return z;
-        }
-
-        [BenchSharkTask("ManagedProvider")]
-        public Vector<double> ManagedProvider()
-        {
-            var z = _b;
-            for (int i = 0; i < _rounds; i++)
-            {
-                var aa = ((DenseVectorStorage<double>)_a.Storage).Data;
-                var az = ((DenseVectorStorage<double>)z.Storage).Data;
-                var ar = new Double[aa.Length];
-                _managed.AddArrays(aa, az, ar);
+                _simd_par.AddArrays(aa, az, ar);
                 z = Vector<double>.Build.Dense(ar);
             }
             return z;
@@ -287,7 +250,7 @@ namespace Performance.LinearAlgebra
             return z;
         }
 
-        [BenchSharkTask("NativeProvider")]
+        //[BenchSharkTask("NativeProvider")]
         public Vector<double> NativeProvider()
         {
             var z = _b;
@@ -302,7 +265,7 @@ namespace Performance.LinearAlgebra
             return z;
         }
 
-        [BenchSharkTask("NativeProvider_Pinned")]
+        //[BenchSharkTask("NativeProvider_Pinned")]
         public Vector<double> NativeProvider_Pinned()
         {
             var z = _b;
@@ -339,7 +302,7 @@ namespace Performance.LinearAlgebra
             return z;
         }
 
-        [BenchSharkTask("NativeProvider_Parallel")]
+        //[BenchSharkTask("NativeProvider_Parallel")]
         public Vector<double> NativeProvider_Parallel()
         {
             var z = _b;
@@ -354,7 +317,7 @@ namespace Performance.LinearAlgebra
             return z;
         }
 
-        [BenchSharkTask("NativeProvider_OpenMP")]
+        //[BenchSharkTask("NativeProvider_OpenMP")]
         public Vector<double> NativeProvider_OpenMP()
         {
             var z = _b;
@@ -369,7 +332,7 @@ namespace Performance.LinearAlgebra
             return z;
         }
 
-        [BenchSharkTask("NativeProvider_Optimized")]
+        //[BenchSharkTask("NativeProvider_Optimized")]
         public Vector<double> NativeProvider_Optimized()
         {
             var z = _b;
@@ -414,6 +377,93 @@ namespace Performance.LinearAlgebra
             return z;
         }
 #endif
+    }
+
+    public class SIMDLinearAlgebraProvider : ManagedLinearAlgebraProvider
+    {
+        public override void AddArrays(double[] x, double[] y, double[] result)
+        {
+            if (y == null)
+            {
+                throw new ArgumentNullException("y");
+            }
+
+            if (x == null)
+            {
+                throw new ArgumentNullException("x");
+            }
+
+            if (result == null)
+            {
+                throw new ArgumentNullException("result");
+            }
+
+            if (y.Length != x.Length || y.Length != result.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            var v_width = SN.Vector<double>.Count;
+
+            int k;
+            for (k = 0; (k + v_width) < result.Length; k += v_width)
+            {
+                var xv = new SN.Vector<double>(x, k);
+                var yv = new SN.Vector<double>(y, k);
+                var rv = xv + yv;
+                rv.CopyTo(result, k);
+            }
+            while (k < result.Length)
+            {
+                result[k] = x[k] + y[k];
+                k++;
+            }
+        }
+    }
+
+    public class SIMDLinearAlgebraProvider_Parallel : ManagedLinearAlgebraProvider
+    {
+        public override void AddArrays(double[] x, double[] y, double[] result)
+        {
+            if (y == null)
+            {
+                throw new ArgumentNullException("y");
+            }
+
+            if (x == null)
+            {
+                throw new ArgumentNullException("x");
+            }
+
+            if (result == null)
+            {
+                throw new ArgumentNullException("result");
+            }
+
+            if (y.Length != x.Length || y.Length != result.Length)
+            {
+                throw new ArgumentException();
+            }
+
+            var v_width = SN.Vector<double>.Count;
+
+            CommonParallel.For(0, result.Length, v_width * 4096, (u, v) =>
+            {
+                int k;
+                for (k = u; (k + v_width) < v; k += v_width)
+                {
+                    var xv = new SN.Vector<double>(x, k);
+                    var yv = new SN.Vector<double>(y, k);
+                    var rv = xv + yv;
+                    rv.CopyTo(result, k);
+                }
+                while (k < v)
+                {
+                    result[k] = x[k] + y[k];
+                    k++;
+                }
+            });
+        }
     }
 
 #if NATIVE

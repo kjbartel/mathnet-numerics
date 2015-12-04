@@ -10,15 +10,18 @@ namespace Performance
     {
         public static void Main()
         {
+            //LinearAlgebra.DenseVectorAdd.Verify(10);
             LinearAlgebra.DenseVectorAdd.Verify(100);
-            LinearAlgebra.DenseVectorAdd.Verify(1000);
-            Benchmark(new LinearAlgebra.DenseVectorAdd(100, 1000), 1000, "X-Small (100) - 1000x1000 iterations");
-            Benchmark(new LinearAlgebra.DenseVectorAdd(1000, 1000), 100, "Small (1'000) - 100x1000 iterations");
-            Benchmark(new LinearAlgebra.DenseVectorAdd(10000, 100), 100, "Medium (10'000) - 100x100 iterations");
+            //LinearAlgebra.DenseVectorAdd.Verify(1000);
+            Benchmark(new LinearAlgebra.DenseVectorAdd(10, 1000), 4000, "X-Tiny (10) - 1000x4000 iterations");
+            Benchmark(new LinearAlgebra.DenseVectorAdd(16, 1000), 4000, "Tiny (16) - 1000x4000 iterations");
+            Benchmark(new LinearAlgebra.DenseVectorAdd(100, 1000), 2000, "X-Small (100) - 1000x2000 iterations");
+            Benchmark(new LinearAlgebra.DenseVectorAdd(1000, 1000), 1000, "Small (1'000) - 1000x1000 iterations");
+            Benchmark(new LinearAlgebra.DenseVectorAdd(10000, 1000), 100, "Medium (10'000) - 1000x100 iterations");
             Benchmark(new LinearAlgebra.DenseVectorAdd(100000, 100), 100, "Large (100'000) - 100x100 iterations");
             Benchmark(new LinearAlgebra.DenseVectorAdd(10000000, 10), 10, "X-Large (10'000'000) - 10x10 iterations");
 
-            LinearAlgebra.DenseMatrixProduct.Verify(5);
+            //LinearAlgebra.DenseMatrixProduct.Verify(5);
             LinearAlgebra.DenseMatrixProduct.Verify(100);
             Benchmark(new LinearAlgebra.DenseMatrixProduct(10, 100), 100, "10 - 100x100 iterations");
             Benchmark(new LinearAlgebra.DenseMatrixProduct(25, 100), 100, "25 - 100x100 iterations");
